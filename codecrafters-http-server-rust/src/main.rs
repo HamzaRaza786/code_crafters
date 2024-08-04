@@ -1,8 +1,8 @@
 // Uncomment this block to pass the first stage
 use std::{
-    fmt::format,
     io::{prelude::*, BufReader, Write},
     net::{TcpListener, TcpStream},
+    thread,
 };
 
 fn handle_client(mut stream: TcpStream) {
@@ -54,7 +54,9 @@ fn main() {
         match stream {
             Ok(_stream) => {
                 println!("accepted new connection");
-                handle_client(_stream);
+                thread::spawn(|| {
+                    handle_client(_stream);
+                });
             }
             Err(e) => {
                 println!("error: {}", e);
