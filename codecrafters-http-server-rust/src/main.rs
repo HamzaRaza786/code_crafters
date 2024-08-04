@@ -1,5 +1,6 @@
 // Uncomment this block to pass the first stage
 use std::{
+    fs,
     io::{prelude::*, BufReader, Write},
     net::{TcpListener, TcpStream},
     thread,
@@ -34,6 +35,26 @@ fn handle_client(mut stream: TcpStream) {
             string_in_the_route.len(),
             string_in_the_route
         );
+        println!("{}", response);
+        stream.write_all(response.as_bytes()).unwrap();
+    } else if request_line.contains("GET /files") {
+        let route = request_line.split_whitespace().nth(1).unwrap();
+        let file_name = route.trim_start_matches("/files/");
+        println!("{}", file_name);
+        let response;
+        match fs::read_to_string(format!("{}.txt", file_name)) {
+            Ok(file_contents) => {
+                response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n Content-Length: {}\r\n{}",
+                    file_contents.len(),
+                    file_contents
+                );
+            }
+            Err(e) => {
+                println!("{}", e);
+                response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\n".to_string();
+            }
+        }
         println!("{}", response);
         stream.write_all(response.as_bytes()).unwrap();
     } else {
