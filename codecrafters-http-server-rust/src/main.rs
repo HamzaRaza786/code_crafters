@@ -40,7 +40,6 @@ fn handle_client(mut stream: TcpStream) {
     } else if request_line.contains("GET /files") {
         let route = request_line.split_whitespace().nth(1).unwrap();
         let file_name = route.trim_start_matches("/files/");
-        println!("{}", file_name);
         let response;
         match fs::read_to_string(format!("{}.txt", file_name)) {
             Ok(file_contents) => {
@@ -51,10 +50,30 @@ fn handle_client(mut stream: TcpStream) {
                 );
             }
             Err(e) => {
-                println!("{}", e);
                 response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\n".to_string();
             }
         }
+        stream.write_all(response.as_bytes()).unwrap();
+    } else if request_line.contains("POST /files") {
+        // for l in lines {
+        //     if l.unwrap().starts_with("Content-Length") {
+        //         let sizeplit = l.unwrap().split(":");
+        //         for s in sizeplit {
+        //             if !(s.starts_with("Content-Length")) {
+        //                 size = s.trim().parse::<usize>().unwrap(); //Get Content-Length
+        //             }
+        //         }
+        //     }
+        // }
+        let mut buffer = vec![0; 5]; //New Vector with size of Content
+        let mut reader = BufReader::new(&mut stream);
+        reader.read_exact(&mut buffer).unwrap(); //Get the Body Content.
+        let body = String::from_utf8(buffer.to_vec()).unwrap();
+        println!("{}", body);
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n Content-Length: \r\n\r\n {}",
+            body
+        );
         println!("{}", response);
         stream.write_all(response.as_bytes()).unwrap();
     } else {
@@ -75,9 +94,9 @@ fn main() {
         match stream {
             Ok(_stream) => {
                 println!("accepted new connection");
-                thread::spawn(|| {
-                    handle_client(_stream);
-                });
+                // thread::spawn(|| {
+                handle_client(_stream);
+                // });
             }
             Err(e) => {
                 println!("error: {}", e);
