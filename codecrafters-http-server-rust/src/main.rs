@@ -1,9 +1,8 @@
-// Uncomment this block to pass the first stage
 use std::{
     fs,
-    io::{prelude::*, BufReader, Write},
+    io::{prelude::*, BufReader, Read, Write},
     net::{TcpListener, TcpStream},
-    thread,
+    str::from_utf8,
 };
 
 fn handle_client(mut stream: TcpStream) {
@@ -54,7 +53,7 @@ fn handle_client(mut stream: TcpStream) {
             }
         }
         stream.write_all(response.as_bytes()).unwrap();
-    } else if request_line.contains("POST /files") {
+    } else if request_line.starts_with("POST /files") {
         // for l in lines {
         //     if l.unwrap().starts_with("Content-Length") {
         //         let sizeplit = l.unwrap().split(":");
@@ -65,17 +64,45 @@ fn handle_client(mut stream: TcpStream) {
         //         }
         //     }
         // }
-        let mut buffer = vec![0; 5]; //New Vector with size of Content
-        let mut reader = BufReader::new(&mut stream);
-        reader.read_exact(&mut buffer).unwrap(); //Get the Body Content.
-        let body = String::from_utf8(buffer.to_vec()).unwrap();
-        println!("{}", body);
+        let mut buffer = [0; 5];
+
+        // Read the data from the stream
+        let mut total_size = 0;
+        loop {
+            match stream.read(&mut buffer[total_size..]) {
+                Ok(0) => break, // End of stream
+                Ok(n) => {
+                    total_size += n;
+                }
+                Err(e) => {
+                    println!("Error reading from stream: {}", e);
+                    return;
+                }
+            }
+        }
+
+        // Convert the buffer to a string and handle it
+        let request_body = match from_utf8(&buffer[..total_size]) {
+            Ok(body) => body,
+            Err(_) => {
+                println!("Error decoding UTF-8");
+                return;
+            }
+        };
+        println!("Request Body: {}", request_body);
+
+        // Create a response
+        let response_body = format!("Received POST data: {}", request_body);
+        let content_length = response_body.len();
         let response = format!(
-            "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n Content-Length: \r\n\r\n {}",
-            body
+            "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}",
+            content_length, response_body
         );
-        println!("{}", response);
-        stream.write_all(response.as_bytes()).unwrap();
+
+        // Send the response
+        if let Err(e) = stream.write_all(response.as_bytes()) {
+            println!("Error writing response: {}", e);
+        }
     } else {
         let response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\n";
         stream.write_all(response.as_bytes()).unwrap();
